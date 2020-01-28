@@ -1,1 +1,2 @@
-# BunchOfNerds
+# SC2-RLAgent
+## Teamname: BunchOfNerds
