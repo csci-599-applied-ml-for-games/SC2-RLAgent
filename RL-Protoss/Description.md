@@ -6,7 +6,7 @@
 
 
 Challenges:
-- All the build locations are hard coded coordinates. Is there a way to select building location intelligently?
+- All the build locations are hard coded coordinates. Is there a way to select building location intelligently? Perhaps we could use image recognition to search for locations that could be used to build structures? 
 - Current army control is extremely simple: we directly attack the enemy's base. How could we add more army actions such as formation, chase, kite, surround, defend, etc.
 - How do we decide when to engage enemies? Perhaps with evaluation functions? 
 - How will we detect cloaked enemies?
