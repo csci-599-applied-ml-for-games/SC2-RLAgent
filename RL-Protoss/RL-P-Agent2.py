@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 class QLearningTable:
-    def __init__(self, actions, learning_rate=0.01, gamma=0.9):
+    def __init__(self, actions, learning_rate=0.1, gamma=0.9):
         self.actions = actions
         self.learning_rate = learning_rate
         self.gamma = gamma
@@ -281,7 +281,7 @@ class ProtossAgent(Agent):
         comp_cybercore = self.get_my_comp_units(obs, units.Protoss.CyberneticsCore)
         zealots = self.get_my_units(obs, units.Protoss.Zealot)
         stalkers = self.get_my_units(obs, units.Protoss.Stalker)
-        queued_zealots = (comp_gateways[0].order_length if len(comp_gateways) > 0 else 0)
+        #queued_zealots = (comp_gateways[0].order_length if len(comp_gateways) > 0 else 0)
         free_supply = obs.observation.player.food_cap - obs.observation.player.food_used
 
         can_build_pylon = obs.observation.player.minerals >= 100
@@ -300,10 +300,17 @@ class ProtossAgent(Agent):
         ene_zealots = self.get_ene_units(obs, units.Protoss.Zealot)
         ene_stalkers = self.get_ene_units(obs, units.Protoss.Stalker)
 
+        '''
         return (len(nexuses), len(probes), len(idle_probes), len(pylons), len(comp_pylons), len(gateways), len(comp_gateways), len(cybercore),
                 len(comp_cybercore), len(zealots), len(stalkers), queued_zealots, free_supply, can_build_zealot, can_build_gateway, can_build_pylon, len(ene_probes),
                 len(ene_nexuses), len(ene_idle_probes), len(ene_pylons), len(ene_comp_pylons), len(ene_gateways), len(ene_comp_gateways),
                 len(ene_cybercore), len(ene_comp_cybercore), len(ene_zealots), len(ene_stalkers))
+        '''
+
+        return (len(probes), len(comp_gateways), 
+                len(comp_cybercore), (len(zealots) + len(stalkers)), free_supply, 
+                len(ene_comp_gateways),
+                len(ene_comp_cybercore), (len(ene_zealots) + len(ene_stalkers)))
 
     def step(self, obs):
         super(ProtossAgent, self).step(obs)
@@ -331,12 +338,11 @@ def main(unused_argv):
         with sc2_env.SC2Env(map_name = 'Simple64', players=[sc2_env.Agent(sc2_env.Race.protoss), sc2_env.Agent(sc2_env.Race.protoss)],
                             agent_interface_format=features.AgentInterfaceFormat(action_space=actions.ActionSpace.RAW, use_raw_units=True, raw_resolution=64),
                             step_mul=48, disable_fog=True) as env:
-            run_loop.run_loop([agent1, agent2], env, max_episodes=100)
+            run_loop.run_loop([agent1, agent2], env, max_episodes=500)
     except KeyboardInterrupt:
         pass
-    f = open('output.txt', 'a')
-    f.write(agent1.q_table.q_table.to_string())
-    f.close()
+
+    agent1.q_table.q_table.to_csv('q-table2.csv')
 
 if __name__ == '__main__':
     app.run(main)
