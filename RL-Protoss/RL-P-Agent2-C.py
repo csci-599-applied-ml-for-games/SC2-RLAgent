@@ -1,6 +1,7 @@
 ##########################################################################
 
-# The protoss agent loads up an existing q-table to make decisions.  
+# The protoss agent loads up an existing q-table to make decisions.
+# It is simply a visual way of seeing how our trained agent will make decisions. 
 
 ##########################################################################
 
