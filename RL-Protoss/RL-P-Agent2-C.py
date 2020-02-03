@@ -316,7 +316,7 @@ def main(unused_argv):
             pass
     else:
        try:
-            with sc2_env.SC2Env(map_name = 'Simple64', players=[sc2_env.Agent(sc2_env.Race.protoss), sc2_env.Bot(sc2_env.Race.zerg, sc2_env.Difficulty.very_easy)],
+            with sc2_env.SC2Env(map_name = 'Simple64', players=[sc2_env.Agent(sc2_env.Race.protoss), sc2_env.Bot(sc2_env.Race.protoss, sc2_env.Difficulty.very_easy)],
                                 agent_interface_format=features.AgentInterfaceFormat(action_space=actions.ActionSpace.RAW, use_raw_units=True, raw_resolution=64),
                                 step_mul=48, disable_fog=True, realtime=True) as env:
                 run_loop.run_loop([agent1], env, max_episodes=3)
