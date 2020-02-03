@@ -1,7 +1,7 @@
 ##########################################################################
 
-# The protoss agent loads up an existing q-table to make decisions.
-# It is simply a visual way of seeing how our trained agent will make decisions. 
+# The protoss agent loads up an existing q-table to make decisions.  
+# It is simply a visual way of seeing how our trained agent will make decisions.
 
 ##########################################################################
 
@@ -199,6 +199,20 @@ class Agent(base_agent.BaseAgent):
             return actions.RAW_FUNCTIONS.Train_Stalker_quick('now', gateway.tag)
         return actions.RAW_FUNCTIONS.no_op()
 
+    '''
+    def get_entire_army(self, obs):
+        zealots = self.get_my_units(obs, units.Protoss.Zealot)
+        stalkers = self.get_my_units(obs, units.Protoss.Stalker)
+        tags = []
+        if len(zealots) > 0:
+            for i in zealots:
+                tags.append(i.tag)
+        if len(stalkers) > 0:
+            for i in stalkers:
+                tags.append(i.tag)
+        return tags
+    '''
+
     def get_entire_army(self, obs):
         zealots = self.get_my_units(obs, units.Protoss.Zealot)
         stalkers = self.get_my_units(obs, units.Protoss.Stalker)
@@ -211,21 +225,35 @@ class Agent(base_agent.BaseAgent):
                 tags.append(i.tag)
         return tags
 
-    # Attack enemy with 3 units when there are at least 3 attack units
+    # Attack enemy with 3 units when there are at least 3 attack units. Attack coordinate set to be the nearest enemy nexus
     def harass(self, obs):
         army = self.get_entire_army(obs)
         if len(army) >= 3:
-            attack_xy = (38, 44) if self.base_top_left else (19, 23)
+            nexuses = self.get_my_units(obs, units.Protoss.Nexus)
+            ene_nexuses = self.get_ene_units(obs, units.Protoss.Nexus)
+            if len(nexuses) > 0 and len(ene_nexuses) > 0:
+                distances = self.get_distances(obs, ene_nexuses, (nexuses[0].x, nexuses[0].y))
+                attack_point = ene_nexuses[np.argmin(distances)]
+                attack_xy = (attack_point.x, attack_point.y)
+            else:
+                attack_xy = (38, 44) if self.base_top_left else (19, 23)
             x_offset = random.randint(-4, 4)
             y_offset = random.randint(-4, 4)
             return actions.RAW_FUNCTIONS.Attack_pt('now', np.random.choice(army, size=3, replace=False), (attack_xy[0] + x_offset, attack_xy[1] + y_offset))
         return actions.RAW_FUNCTIONS.no_op()
 
-    # Attack the enemy with the whole army when there are at least 6 units
+    # Attack the enemy with the whole army when there are at least 6 units. Attack coordinate set to be the nearest enemy nexus
     def attack_all(self, obs):
         army = self.get_entire_army(obs)
         if len(army) >= 6:
-            attack_xy = (38, 44) if self.base_top_left else (19, 23)
+            nexuses = self.get_my_units(obs, units.Protoss.Nexus)
+            ene_nexuses = self.get_ene_units(obs, units.Protoss.Nexus)
+            if len(nexuses) > 0 and len(ene_nexuses) > 0:
+                distances = self.get_distances(obs, ene_nexuses, (nexuses[0].x, nexuses[0].y))
+                attack_point = ene_nexuses[np.argmin(distances)]
+                attack_xy = (attack_point.x, attack_point.y)
+            else:
+                attack_xy = (38, 44) if self.base_top_left else (19, 23)
             x_offset = random.randint(-4, 4)
             y_offset = random.randint(-4, 4)
             return actions.RAW_FUNCTIONS.Attack_pt('now', army, (attack_xy[0] + x_offset, attack_xy[1] + y_offset))
@@ -234,7 +262,7 @@ class Agent(base_agent.BaseAgent):
 class ProtossAgent(Agent):
     def __init__(self):
         super(ProtossAgent, self).__init__()
-        self.q_table = QTable(self.actions, 'testcsv.csv')
+        self.q_table = QTable(self.actions, 'q-table2.csv')
         self.new_game()
 
     def reset(self):
@@ -291,6 +319,10 @@ class ProtossAgent(Agent):
 
     def step(self, obs):
         super(ProtossAgent, self).step(obs)
+        probes = self.get_my_units(obs, units.Protoss.Probe)
+        idle_probes = [probe for probe in probes if probe.order_length == 0]
+        if len(idle_probes) > 0: # If there is any idle probe, send them to mine minerals for this step
+            return getattr(self, 'mine_minerals', 'do_nothing')(obs)
         state = str(self.get_state(obs))
         action = self.q_table.decide(state)
         return getattr(self, action, 'do_nothing')(obs)
@@ -315,20 +347,13 @@ def main(unused_argv):
         except KeyboardInterrupt:
             pass
     else:
-       try:
+        try:
             with sc2_env.SC2Env(map_name = 'Simple64', players=[sc2_env.Agent(sc2_env.Race.protoss), sc2_env.Bot(sc2_env.Race.protoss, sc2_env.Difficulty.very_easy)],
                                 agent_interface_format=features.AgentInterfaceFormat(action_space=actions.ActionSpace.RAW, use_raw_units=True, raw_resolution=64),
-                                step_mul=48, disable_fog=True, realtime=True) as env:
-                run_loop.run_loop([agent1], env, max_episodes=3)
+                                step_mul=48, disable_fog=True, realtime=False) as env:
+                run_loop.run_loop([agent1], env, max_episodes=5)
         except KeyboardInterrupt:
             pass 
 
 if __name__ == '__main__':
     app.run(main)
-
-
-
-
-
-actions = ('do_nothing', 'mine_minerals', 'mine_gas', 'build_assimilator', 'build_pylon', 'build_gateway', 'build_cybercore', 'train_probe', 'train_zealot', 'train_stalker', 'harass', 'attack_all')
-test = QTable(actions, 'testcsv.csv')
