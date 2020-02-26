@@ -406,8 +406,6 @@ class ProtossAgent(Agent):
                 f = open('./train data/actions.csv', 'a')
                 np.savetxt(f, np.array(self.action_hist), fmt='%s')
                 f.close()
-            print(len(self.image_data))
-            print(len(self.action_hist))
             self.image_data = [] #Reset image for new game
             self.action_hist = [] #Reset action history for new game
         return getattr(self, action, 'do_nothing')(obs)
