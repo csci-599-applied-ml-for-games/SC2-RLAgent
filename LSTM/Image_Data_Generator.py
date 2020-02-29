@@ -211,6 +211,24 @@ class Agent(base_agent.BaseAgent):
                 return actions.RAW_FUNCTIONS.Train_Stalker_quick('now', gateway.tag)
         return actions.RAW_FUNCTIONS.no_op()
 
+    def get_inbase_army(self, obs):
+        zealots = self.get_my_units(obs, units.Protoss.Zealot)
+        stalkers = self.get_my_units(obs, units.Protoss.Stalker)
+        tags = []
+        if len(zealots) > 0:
+            for i in zealots:
+                if self.base_top_left and i.x >=24 and i.x <= 26 and i.y >= 22 and i.y <= 27 and i.order_length == 0:
+                    tags.append(i.tag)
+                if not self.base_top_left and i.x >= 32 and i.x <= 34 and i.y >= 41 and i.y <= 46 and i.order_length == 0:
+                    tags.append(i.tag)
+        if len(stalkers) > 0:
+            for i in stalkers:
+                if self.base_top_left and i.x >=24 and i.x <= 26 and i.y >= 22 and i.y <= 26 and i.order_length == 0:
+                    tags.append(i.tag)
+                if not self.base_top_left and i.x >= 32 and i.x <= 34 and i.y >= 41 and i.y <= 46 and i.order_length == 0:
+                    tags.append(i.tag)
+        return tags
+
     def get_entire_army(self, obs):
         zealots = self.get_my_units(obs, units.Protoss.Zealot)
         stalkers = self.get_my_units(obs, units.Protoss.Stalker)
@@ -222,6 +240,12 @@ class Agent(base_agent.BaseAgent):
             for i in stalkers:
                 tags.append(i.tag)
         return tags
+
+    def move_inbase_army(self, obs, tags):
+        if self.base_top_left:
+            return actions.RAW_FUNCTIONS.Move_pt('now', tags, [27, 23])
+        else:
+            return actions.RAW_FUNCTIONS.Move_pt('now', tags, [30, 45])
 
     # Attack enemy with 3 units when there are at least 3 attack units. Attack coordinate set to be the nearest enemy nexus
     def harass(self, obs):
@@ -375,11 +399,14 @@ class ProtossAgent(Agent):
         super(ProtossAgent, self).step(obs)
         probes = self.get_my_units(obs, units.Protoss.Probe)
         idle_probes = [probe for probe in probes if probe.order_length == 0]
+        inbase_army_tags = self.get_inbase_army(obs)
         comp_gateways = self.get_my_comp_units(obs, units.Protoss.Gateway)
         comp_cybercore = self.get_my_comp_units(obs, units.Protoss.CyberneticsCore)
         if len(comp_cybercore) >= 1 and self.warp_gate: # Check if warp_gate research is complete
             if comp_cybercore[0].order_progress_0 == 0:
                 self.warp_gate_complete = True
+        if len(inbase_army_tags) > 0:
+            return self.move_inbase_army(obs, inbase_army_tags)
         if len(idle_probes) > 0: # If there is any idle probe, send them to mine minerals for this step
             return getattr(self, 'mine_minerals', 'do_nothing')(obs)
         # Research warp gate if it hasn't been researched and we have a cyber core
@@ -434,7 +461,7 @@ def main(unused_argv):
             with sc2_env.SC2Env(map_name = 'Simple64', players=[sc2_env.Agent(sc2_env.Race.protoss), sc2_env.Bot(sc2_env.Race.protoss, sc2_env.Difficulty.easy)],
                                 agent_interface_format=features.AgentInterfaceFormat(action_space=actions.ActionSpace.RAW, use_raw_units=True, raw_resolution=64),
                                 step_mul=40, disable_fog=True, realtime=False) as env:
-                run_loop.run_loop([agent1], env, max_episodes=4)
+                run_loop.run_loop([agent1], env, max_episodes=10)
         except KeyboardInterrupt:
             pass 
 
