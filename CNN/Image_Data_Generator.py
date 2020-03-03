@@ -347,7 +347,8 @@ class ProtossAgent(Agent):
                 len(ene_comp_cybercore), (len(ene_zealots) + len(ene_stalkers)))
 
     def get_image(self, obs):
-        game_map = np.zeros((64, 64, 3), np.uint8)
+        game_map = np.full((64, 64, 3), 255, np.uint8)
+        #game_map = np.zeros((64, 64, 3), np.uint8)
         nexuses = self.get_my_units(obs, units.Protoss.Nexus)
         comp_pylons = self.get_my_comp_units(obs, units.Protoss.Pylon)
         comp_gateways = self.get_my_comp_units(obs, units.Protoss.Gateway)
@@ -365,31 +366,31 @@ class ProtossAgent(Agent):
         for i in nexuses:
             cv2.circle(game_map, (int(i.x), int(i.y)), 3, (0, 255, 0), -1) #Green
         for i in comp_pylons:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (0, 245, 0), -1)
+            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (0, 255, 255), -1) 
         for i in comp_gateways:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (0, 235, 0), -1)
+            cv2.circle(game_map, (int(i.x), int(i.y)), 2, (255, 128, 0), -1)
         for i in comp_warpgate:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (0, 225, 0), -1)
+            cv2.circle(game_map, (int(i.x), int(i.y)), 2, (255, 128, 0), -1) # Same color as gateway
         for i in comp_cybercore:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (0, 215, 0), -1)
+            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (0, 102, 204), -1)
         for i in zealots:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (0, 0, 255), -1) #Blue
+            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (255, 255, 0), -1) #Yellow
         for i in stalkers:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (0, 0, 255), -1)
+            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (0, 128, 255), -1)
         for i in ene_nexuses:
             cv2.circle(game_map, (int(i.x), int(i.y)), 3, (255, 0, 0), -1) #Red
         for i in ene_comp_pylons:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (245, 0, 0), -1)
+            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (255, 102, 102), -1)
         for i in ene_comp_gateways:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (235, 0, 0), -1)
+            cv2.circle(game_map, (int(i.x), int(i.y)), 2, (153, 0, 76), -1)
         for i in ene_comp_warpgate:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (225, 0, 0), -1)
+            cv2.circle(game_map, (int(i.x), int(i.y)), 2, (153, 0, 76), -1)
         for i in ene_comp_cybercore:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (215, 0, 0), -1)
+            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (102, 0, 51), -1)
         for i in ene_zealots:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (255, 128, 0), -1) #Orange
+            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (127, 0, 255), -1) #Light Purple
         for i in ene_stalkers:
-            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (255, 128, 0), -1)
+            cv2.circle(game_map, (int(i.x), int(i.y)), 1, (51, 0, 102), -1) #Dark Purple
         #cv2.imshow('test', game_map)
         #cv2.waitKey(1)
         #cv2.destroyAllWindows()
@@ -428,9 +429,9 @@ class ProtossAgent(Agent):
         if obs.last():
             if obs.reward == 1:
                 for i in range(len(self.image_data)):
-                    cv2.imwrite('./train data/train image/' + str(self.image_index) + '.png', self.image_data[i])
+                    cv2.imwrite('C:/Users/Yucheng/PycharmProjects/TF2/sc2/train/train image/' + str(self.image_index) + '.png', self.image_data[i])
                     self.image_index += 1
-                f = open('./train data/actions.csv', 'a')
+                f = open('C:/Users/Yucheng/PycharmProjects/TF2/sc2/train/actions.csv', 'a')
                 np.savetxt(f, np.array(self.action_hist), fmt='%s')
                 f.close()
             self.image_data = [] #Reset image for new game
@@ -452,7 +453,7 @@ def main(unused_argv):
         try:
             with sc2_env.SC2Env(map_name = 'Simple64', players=[sc2_env.Agent(sc2_env.Race.protoss), sc2_env.Agent(sc2_env.Race.protoss)],
                                 agent_interface_format=features.AgentInterfaceFormat(action_space=actions.ActionSpace.RAW, use_raw_units=True, raw_resolution=64),
-                                step_mul=40, disable_fog=True, realtime=True) as env:
+                                step_mul=40, disable_fog=True, realtime=False) as env:
                 run_loop.run_loop([agent1, agent2], env, max_episodes=3)
         except KeyboardInterrupt:
             pass
@@ -461,7 +462,7 @@ def main(unused_argv):
             with sc2_env.SC2Env(map_name = 'Simple64', players=[sc2_env.Agent(sc2_env.Race.protoss), sc2_env.Bot(sc2_env.Race.protoss, sc2_env.Difficulty.easy)],
                                 agent_interface_format=features.AgentInterfaceFormat(action_space=actions.ActionSpace.RAW, use_raw_units=True, raw_resolution=64),
                                 step_mul=40, disable_fog=True, realtime=False) as env:
-                run_loop.run_loop([agent1], env, max_episodes=200)
+                run_loop.run_loop([agent1], env, max_episodes=150)
         except KeyboardInterrupt:
             pass 
 
