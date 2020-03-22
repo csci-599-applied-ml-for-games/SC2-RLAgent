@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Mar 21 18:13:45 2020
-
-@author: 54365
-"""
-
 import sc2
 from sc2 import run_game, maps, Race, Difficulty, position, Result
 from sc2.player import Bot, Computer, Human
@@ -23,7 +16,7 @@ class ProtossBot(sc2.BotAI):
     def __init__(self):
         # Setup for the game, establishing some constants used for this build
         self.ITERATIONS_PER_MINUTE = 260
-        self.MAX_WORKERS = 44
+        self.MAX_WORKERS = 38
         self.do_something_after = 0
         self.train_data = []
         self.warpgate_started = False
@@ -45,14 +38,12 @@ class ProtossBot(sc2.BotAI):
         await self.build_workers()
         await self.build_pylons()
         await self.build_assimilators()
-        await self.expand()
         await self.offensive_force_buildings()
         await self.build_offensive_force()
         await self.intel()
         await self.attack()
         await self.warp_units()
         await self.build_proxy_pylon()
-        await self.morph_gates()
         await self.chronoboost()
         await self.blink()
 
@@ -173,36 +164,35 @@ class ProtossBot(sc2.BotAI):
 
     # These functions just build buildings or units
     async def build_workers(self):
-        if len(self.units(PROBE)) < self.MAX_WORKERS:
-            for nexus in self.units(NEXUS).ready.noqueue:
-                if self.can_afford(PROBE):
-                    await self.do(nexus.train(PROBE))
+        """
+        选择空闲基地建造农民
+        noqueue意味着当前建造列表为空
+        """
+        if len(self.units(NEXUS))*20 > len(self.units(PROBE)):  # 每矿农民补满就不补了
+            if len(self.units(PROBE)) < self.MAX_WORKERS:
+                for nexus in self.units(NEXUS).ready.noqueue:
+                    if self.can_afford(PROBE):
+                        await self.do(nexus.train(PROBE))
 
     async def build_pylons(self):
         if self.supply_left < 5 and not self.already_pending(PYLON):
             nexuses = self.units(NEXUS).ready
             if nexuses.exists:
                 if self.can_afford(PYLON):
-                    #避免建造在矿区里面
                     await self.build(PYLON, near=nexuses.first.position.towards(self.game_info.map_center, 10))
 
     async def build_assimilators(self):
-        if ((self.units(ASSIMILATOR).amount < 2 and self.supply_used > 15) or self.supply_used > 120):
-            for nexus in self.units(NEXUS).ready:
-                vaspenes = self.state.vespene_geyser.closer_than(15.0, nexus)
-                for vaspene in vaspenes:
-                    if not self.can_afford(ASSIMILATOR):
-                        break
-                    worker = self.select_build_worker(vaspene.position)
-                    if worker is None:
-                        break
-                    if not self.units(ASSIMILATOR).closer_than(1.0, vaspene).exists:
-                        await self.do(worker.build(ASSIMILATOR, vaspene))
-
-    async def expand(self):
-        if self.units(NEXUS).amount < 2 and self.supply_used < 33 and self.can_afford(NEXUS):
-            await self.expand_now()
-
+        for nexus in self.units(NEXUS).ready:
+            vespenes = self.state.vespene_geyser.closer_than(25.0, nexus)
+            for vespene in vespenes:
+                if not self.can_afford(ASSIMILATOR):
+                    break
+                worker = self.select_build_worker(vespene.position)
+                if worker is None:
+                    break
+                if not self.units(ASSIMILATOR).closer_than(1.0, vespene).exists:
+                    await self.do(worker.build(ASSIMILATOR, vespene))
+            
     async def warp_new_units(self, proxy):
         for warpgate in self.units(WARPGATE).ready:
             abilities = await self.get_available_abilities(warpgate)
@@ -221,13 +211,13 @@ class ProtossBot(sc2.BotAI):
             if self.units(GATEWAY).ready.exists and not self.units(CYBERNETICSCORE):
                 if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
                     await self.build(CYBERNETICSCORE, near=pylon)
-
-            elif self.supply_used == 15 or self.supply_used == 19 or (
-                    self.supply_used == 36 and len(self.units(GATEWAY)) < 4) or (
-                    len(self.units(WARPGATE)) < 6 and self.warpgate_done):
-                if self.can_afford(GATEWAY):
+            elif self.units(GATEWAY).amount==2 and self.units(NEXUS).amount<2:
+                if self.can_afford(NEXUS):
+                    await self.expand_now()
+            elif self.units(GATEWAY).amount+self.units(WARPGATE).amount<8: #需要添加更多限制
+                 if self.can_afford(GATEWAY):
                     await self.build(GATEWAY, near=pylon)
-
+                    
             if self.units(CYBERNETICSCORE).ready.exists:
                 if len(self.units(TWILIGHTCOUNCIL)) < 1:
                     if self.can_afford(TWILIGHTCOUNCIL) and not self.already_pending(TWILIGHTCOUNCIL):
@@ -312,16 +302,17 @@ class ProtossBot(sc2.BotAI):
             await self.build(PYLON, near=p)
             self.proxy_built = True
 
-    async def morph_gates(self):
-        for gateway in self.units(GATEWAY).ready:
-            abilities = await self.get_available_abilities(gateway)
-            if AbilityId.MORPH_WARPGATE in abilities and self.can_afford(AbilityId.MORPH_WARPGATE):
-                await self.do(gateway(MORPH_WARPGATE))
-                warpgate_done = True
-
     # Used for chronoboost
     async def chronoboost(self):
-        if self.units(CYBERNETICSCORE).ready.exists and not self.units(WARPGATE).exists:
+        if not self.units(CYBERNETICSCORE).ready.exists:
+            bn=self.units(NEXUS).ready.first
+            if not bn.has_buff(BuffId.CHRONOBOOSTENERGYCOST):
+                for nexus in self.units(NEXUS).ready:
+                    abilities = await self.get_available_abilities(nexus)
+                    if AbilityId.EFFECT_CHRONOBOOSTENERGYCOST in abilities:
+                        for nexus in self.units(NEXUS).ready:
+                            await self.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, bn))
+        elif self.units(CYBERNETICSCORE).ready.exists and not self.units(WARPGATE).exists:
             ccore = self.units(CYBERNETICSCORE).ready.first
             if not ccore.has_buff(BuffId.CHRONOBOOSTENERGYCOST):
                 for nexus in self.units(NEXUS).ready:
@@ -361,8 +352,8 @@ class ProtossBot(sc2.BotAI):
 def game():
     run_game(maps.get("Simple64"), [
         Bot(Race.Protoss, ProtossBot()),
-        Computer(Race.Zerg, Difficulty.Hard)
-    ], realtime=True)
+        Computer(Race.Protoss, Difficulty.Hard)
+    ], realtime=False)
 
 
 # Lets run it multithread to get more data.
