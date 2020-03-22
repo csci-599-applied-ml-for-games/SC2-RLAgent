@@ -115,9 +115,7 @@ class ProtossBot(sc2.BotAI):
         for enemy_unit in self.known_enemy_units:
 
             if not enemy_unit.is_structure:
-                worker_names = ["probe",
-                                "scv",
-                                "drone"]
+                worker_names = ["probe","scv","drone"]
 
                 pos = enemy_unit.position
                 if enemy_unit.name.lower() in worker_names:
@@ -214,14 +212,14 @@ class ProtossBot(sc2.BotAI):
             elif self.units(GATEWAY).amount==2 and self.units(NEXUS).amount<2:
                 if self.can_afford(NEXUS):
                     await self.expand_now()
-            elif self.units(GATEWAY).amount+self.units(WARPGATE).amount<5: #需要添加更多限制
+            elif self.units(GATEWAY).amount+self.units(WARPGATE).amount<8: #需要添加更多限制
                  if self.can_afford(GATEWAY):
                     await self.build(GATEWAY, near=pylon)
                     
             if self.units(CYBERNETICSCORE).ready.exists:
-             #   if len(self.units(TWILIGHTCOUNCIL)) < 1:
-              #      if self.can_afford(TWILIGHTCOUNCIL) and not self.already_pending(TWILIGHTCOUNCIL):
-               #         await self.build(TWILIGHTCOUNCIL, near=pylon)
+                if len(self.units(TWILIGHTCOUNCIL)) < 1:
+                    if self.can_afford(TWILIGHTCOUNCIL) and not self.already_pending(TWILIGHTCOUNCIL):
+                        await self.build(TWILIGHTCOUNCIL, near=pylon)
             
             if self.units(CYBERNETICSCORE).ready.exists:
                 if len(self.units(ROBOTICSFACILITY)) < 1:
@@ -241,18 +239,9 @@ class ProtossBot(sc2.BotAI):
                     blink_started = True
 
     async def build_offensive_force(self):
-        if self.supply_used < 28:
-            for gw in self.units(GATEWAY).ready.noqueue:
-                if self.can_afford(ADEPT) and self.supply_left > 0:
-                    await self.do(gw.train(ADEPT))
-        elif self.supply_used >= 28 and self.supply_used < 31:
-            for gw in self.units(GATEWAY).ready.noqueue:
-                if self.can_afford(STALKER) and self.supply_left > 0:
-                    await self.do(gw.train(STALKER))
-        else:
-            for vr in self.units(ROBOTICSFACILITY) and self.supply_left>0:
-                if self.can_afford(IMMORTAL) and self.supply_left>0:
-                    await self.do(vr.train(IMMORTAL))
+        for vr in self.units(ROBOTICSFACILITY).ready.noqueue:
+            if self.can_afford(IMMORTAL) and self.supply_left > 0:
+                await self.do(vr.train(IMMORTAL))
 
     def find_target(self, state):
         if len(self.known_enemy_units) > 0:
@@ -362,7 +351,7 @@ def game():
     run_game(maps.get("Simple64"), [
         Bot(Race.Protoss, ProtossBot()),
         Computer(Race.Protoss, Difficulty.Hard)
-    ], realtime=True)
+    ], realtime=False)
 
 
 # Lets run it multithread to get more data.
