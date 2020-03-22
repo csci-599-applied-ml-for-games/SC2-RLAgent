@@ -13,27 +13,23 @@ HEADLESS = False
 
 
 class ProtossBot(sc2.BotAI):
-    def __init__(self):
-        # Setup for the game, establishing some constants used for this build
-        self.ITERATIONS_PER_MINUTE = 260
-        self.MAX_WORKERS = 38
-        self.do_something_after = 0
-        self.train_data = []
-        self.warpgate_started = False
-        self.blink_started = False
-        self.proxy_built = False
-        self.warpgate_done = False
+    def __init__(self): #设定初始参数
+        self.ITERATIONS_PER_MINUTE=260
+        self.MAX_WORKERS=38
+        self.do_something_after=0
+        self.train_data=[]
+        self.warpgate_started=False
+        self.blink_started=False
+        self.proxy_built=False
+        self.warpgate_done=False
 
-    # Requires modification of python-sc2 package
-    def on_end(self, game_result):
-
+    def on_end(self, game_result):  #想记录游戏数据，但没有用
         if game_result == Result.Victory:
             np.save(os.path.dirname(os.path.realpath(__file__)) + "/train_data/{}.npy".format(str(int(time.time()))),
                     np.array(self.train_data))
 
-    async def on_step(self, iteration):
+    async def on_step(self, iteration):  #注册所有的动作
         self.iteration = iteration
-        await self.scout()
         await self.distribute_workers()
         await self.build_workers()
         await self.build_pylons()
@@ -47,38 +43,26 @@ class ProtossBot(sc2.BotAI):
         await self.chronoboost()
         await self.blink()
 
-    # Mix up the scouting pattern
-    def random_location_variance(self, enemy_start_location):
-        x = enemy_start_location[0]
-        y = enemy_start_location[1]
+    def random_location_variance(self, enemy_start_location):  #随机摆放建筑物，感觉可以再优化
+        x=enemy_start_location[0]
+        y=enemy_start_location[1]
 
-        x += ((random.randrange(-20, 20)) / 100) * enemy_start_location[0]
-        y += ((random.randrange(-20, 20)) / 100) * enemy_start_location[1]
+        x+=((random.randrange(-20,20))/100)*enemy_start_location[0]
+        y+=((random.randrange(-20,20))/100)*enemy_start_location[1]
 
-        if x < 0:
-            x = 0
-        if y < 0:
-            y = 0
-        if x > self.game_info.map_size[0]:
-            x = self.game_info.map_size[0]
-        if y > self.game_info.map_size[1]:
-            y = self.game_info.map_size[1]
+        if x<0:
+            x=0
+        if y<0:
+            y=0
+        if x>self.game_info.map_size[0]:
+            x=self.game_info.map_size[0]
+        if y>self.game_info.map_size[1]:
+            y=self.game_info.map_size[1]
 
-        # Have to convert the position to Point2 from pointlike
-        go_to = position.Point2(position.Pointlike((x, y)))
+        go_to = position.Point2(position.Pointlike((x, y))) #对坐标进行转化
         return go_to
 
-    # Use our adepts to locate the enemy
-    async def scout(self):
-        if len(self.units(ADEPT)) > 0:
-            scout = self.units(ADEPT)[0]
-            if scout.is_idle:
-                enemy_location = self.enemy_start_locations[0]
-                move_to = self.random_location_variance(enemy_location)
-                await self.do(scout.attack(move_to))
-
-    # Visualizes the game from the bots perspective, especially useful for linux users
-    async def intel(self):
+    async def intel(self):  #画图，装逼  其实并没有什么用
         # setup up the data type
         game_data = np.zeros((self.game_info.map_size[1], self.game_info.map_size[0], 3), np.uint8)
 
@@ -115,9 +99,7 @@ class ProtossBot(sc2.BotAI):
         for enemy_unit in self.known_enemy_units:
 
             if not enemy_unit.is_structure:
-                worker_names = ["probe",
-                                "scv",
-                                "drone"]
+                worker_names = ["probe","scv","drone"]
 
                 pos = enemy_unit.position
                 if enemy_unit.name.lower() in worker_names:
@@ -146,10 +128,8 @@ class ProtossBot(sc2.BotAI):
             military_weight = 1.0
 
         cv2.line(game_data, (0, 19), (int(line_max * military_weight), 19), (250, 250, 200), 3)  # worker/supply ratio
-        cv2.line(game_data, (0, 15), (int(line_max * plausible_supply), 15), (220, 200, 200),
-                 3)  # plausible supply (supply/200.0)
-        cv2.line(game_data, (0, 11), (int(line_max * population_ratio), 11), (150, 150, 150),
-                 3)  # population ratio (supply_left/supply)
+        cv2.line(game_data, (0, 15), (int(line_max * plausible_supply), 15), (220, 200, 200),3)  # plausible supply (supply/200.0)
+        cv2.line(game_data, (0, 11), (int(line_max * population_ratio), 11), (150, 150, 150),3)  # population ratio (supply_left/supply)
         cv2.line(game_data, (0, 7), (int(line_max * vespene_ratio), 7), (210, 200, 0), 3)  # gas / 1500
         cv2.line(game_data, (0, 3), (int(line_max * mineral_ratio), 3), (0, 255, 25), 3)  # minerals minerals/1500
 
@@ -162,75 +142,62 @@ class ProtossBot(sc2.BotAI):
             cv2.imshow('Intel', resized)
             cv2.waitKey(1)
 
-    # These functions just build buildings or units
-    async def build_workers(self):
-        """
-        选择空闲基地建造农民
-        noqueue意味着当前建造列表为空
-        """
-        if len(self.units(NEXUS))*20 > len(self.units(PROBE)):  # 每矿农民补满就不补了
-            if len(self.units(PROBE)) < self.MAX_WORKERS:
+
+
+    async def build_workers(self):  #选择空闲基地建造农民
+        if len(self.units(NEXUS))*20>len(self.units(PROBE)):  # 每矿农民补满就不补了
+            if len(self.units(PROBE))<self.MAX_WORKERS:
                 for nexus in self.units(NEXUS).ready.noqueue:
                     if self.can_afford(PROBE):
                         await self.do(nexus.train(PROBE))
 
-    async def build_pylons(self):
-        if self.supply_left < 5 and not self.already_pending(PYLON):
-            nexuses = self.units(NEXUS).ready
+    async def build_pylons(self): #建造水晶塔，且避免建筑影响采矿
+        if self.supply_left<5 and not self.already_pending(PYLON):
+            nexuses=self.units(NEXUS).ready
             if nexuses.exists:
                 if self.can_afford(PYLON):
-                    await self.build(PYLON, near=nexuses.first.position.towards(self.game_info.map_center, 10))
+                    await self.build(PYLON,near=nexuses.first.position.towards(self.game_info.map_center,10))
 
-    async def build_assimilators(self):
+    async def build_assimilators(self):  #建造气矿
         for nexus in self.units(NEXUS).ready:
-            vespenes = self.state.vespene_geyser.closer_than(25.0, nexus)
+            vespenes=self.state.vespene_geyser.closer_than(25.0,nexus)
             for vespene in vespenes:
                 if not self.can_afford(ASSIMILATOR):
                     break
-                worker = self.select_build_worker(vespene.position)
+                worker=self.select_build_worker(vespene.position)
                 if worker is None:
                     break
-                if not self.units(ASSIMILATOR).closer_than(1.0, vespene).exists:
-                    await self.do(worker.build(ASSIMILATOR, vespene))
+                if not self.units(ASSIMILATOR).closer_than(1.0,vespene).exists:
+                    await self.do(worker.build(ASSIMILATOR,vespene))
             
-    async def warp_new_units(self, proxy):
-        for warpgate in self.units(WARPGATE).ready:
-            abilities = await self.get_available_abilities(warpgate)
-            # Lets warp in stalkers :)
-            if AbilityId.WARPGATETRAIN_STALKER in abilities:
-                pos = proxy.position.to2.random_on_distance(4)
-                placement = await self.find_placement(AbilityId.WARPGATETRAIN_STALKER, pos, placement_step=1)
-                if placement is None:
-                    return
-                await self.do(warpgate.warp_in(STALKER, placement))
-
-    async def offensive_force_buildings(self):
+    async def offensive_force_buildings(self): #单兵营开二矿 考虑在建造顺序上更加严谨一点
         if self.units(PYLON).ready.exists:
             pylon = self.units(PYLON).ready.random
 
             if self.units(GATEWAY).ready.exists and not self.units(CYBERNETICSCORE):
                 if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
-                    await self.build(CYBERNETICSCORE, near=pylon)
-            elif self.units(GATEWAY).amount==2 and self.units(NEXUS).amount<2:
+                    await self.build(CYBERNETICSCORE,near=pylon)
+            elif self.units(GATEWAY).amount==1 and self.units(NEXUS).amount<2:
                 if self.can_afford(NEXUS):
                     await self.expand_now()
-            elif self.units(GATEWAY).amount+self.units(WARPGATE).amount<8: #需要添加更多限制
+            elif self.units(GATEWAY).amount+self.units(WARPGATE).amount<8: 
                  if self.can_afford(GATEWAY):
-                    await self.build(GATEWAY, near=pylon)
+                    await self.build(GATEWAY,near=pylon)
                     
             if self.units(CYBERNETICSCORE).ready.exists:
-                if len(self.units(TWILIGHTCOUNCIL)) < 1:
+                if len(self.units(TWILIGHTCOUNCIL))<1:
                     if self.can_afford(TWILIGHTCOUNCIL) and not self.already_pending(TWILIGHTCOUNCIL):
-                        await self.build(TWILIGHTCOUNCIL, near=pylon)
+                        await self.build(TWILIGHTCOUNCIL,near=pylon)
             
             if self.units(CYBERNETICSCORE).ready.exists:
-                if len(self.units(ROBOTICSFACILITY)) < 1:
+                if len(self.units(ROBOTICSFACILITY))<1:
                     if self.can_afford(ROBOTICSFACILITY) and not self.already_pending(ROBOTICSFACILITY):
-                        await self.build(ROBOTICSFACILITY, near=pylon)
-
+                        await self.build(ROBOTICSFACILITY,near=pylon)
+            
+            #升级
             if self.units(CYBERNETICSCORE).ready.exists and self.can_afford(
                     RESEARCH_WARPGATE) and not self.warpgate_started:
-                ccore = self.units(CYBERNETICSCORE).ready.first
+                ccore=self.units(CYBERNETICSCORE).ready.first
                 await self.do(ccore(RESEARCH_WARPGATE))
                 self.warpgate_started = True
 
@@ -240,15 +207,10 @@ class ProtossBot(sc2.BotAI):
                     await self.do(twc(RESEARCH_BLINK))
                     blink_started = True
 
-    async def build_offensive_force(self):
-        if self.supply_used < 28:
-            for gw in self.units(GATEWAY).ready.noqueue:
-                if self.can_afford(ADEPT) and self.supply_left > 0:
-                    await self.do(gw.train(ADEPT))
-        elif self.supply_used >= 28 and self.supply_used < 31:
-            for gw in self.units(GATEWAY).ready.noqueue:
-                if self.can_afford(STALKER) and self.supply_left > 0:
-                    await self.do(gw.train(STALKER))
+    async def build_offensive_force(self): #建造不朽爸爸
+        for vr in self.units(ROBOTICSFACILITY).ready.noqueue:
+            if self.can_afford(IMMORTAL) and self.supply_left > 0:
+                await self.do(sg.train(IMMORTAL))
 
     def find_target(self, state):
         if len(self.known_enemy_units) > 0:
@@ -258,57 +220,61 @@ class ProtossBot(sc2.BotAI):
         else:
             return self.enemy_start_locations[0]
 
-    # This functon is used for attacking. Consists of 4 options:
-    # 1. Do nothing
-    # 2. Attack enemy units
-    # 3. Attack enemy buildings
-    # 4. Attack the enemy starting location
+    #四种攻击选择
+        #1.什么都不做
+        #2.攻击敌人单位
+        #3.攻击敌人建筑物
+        #4.攻击敌人出生点 问题：高地视野导致这个变成了送兵，需要手动控制
     async def attack(self):
         if len(self.units(STALKER).idle) > 8:
             choice = random.randrange(0, 4)
             target = False
             if self.iteration > self.do_something_after:
-                if choice == 0:
-                    # no attack
+                if choice == 0: #不攻击
                     wait = random.randrange(20, 165)
                     self.do_something_after = self.iteration + wait
 
-                elif choice == 1:
-                    # attack the unit closest to the nexuses
+                elif choice == 1: #攻击最近的基地
                     if len(self.known_enemy_units) > 0:
                         target = self.known_enemy_units.closest_to(random.choice(self.units(NEXUS)))
-                    # attack enemy buildings
-                elif choice == 2:
+                elif choice == 2: #攻击敌人的建筑物
                     if len(self.known_enemy_structures) > 0:
                         target = random.choice(self.known_enemy_structures)
-                    # attack enemy staring position
-                elif choice == 3:
+                elif choice == 3: #攻击出生点
                     target = self.enemy_start_locations[0]
 
-                # Loop over idle stalkers and attack the position
-                if target:
+                if target: #不断调整站位
                     for st in self.units(STALKER).idle:
                         await self.do(st.attack(target))
 
-                # save the choice to an array used in our machine learning
-                y = np.zeros(4)
+                y = np.zeros(4) #保存选择 但我没看到有什么效果
                 y[choice] = 1
-                # We have to flip it again to get the size properly
                 self.train_data.append([y, self.flipped])
 
+
+    async def warp_new_units(self, proxy): #折跃追猎者  在考虑同时折跃哨兵
+        for warpgate in self.units(WARPGATE).ready:
+            abilities = await self.get_available_abilities(warpgate)
+            # Lets warp in stalkers :)
+            if AbilityId.WARPGATETRAIN_STALKER in abilities:
+                pos = proxy.position.to2.random_on_distance(4)
+                placement = await self.find_placement(AbilityId.WARPGATETRAIN_STALKER, pos, placement_step=1)
+                if placement is None:
+                    return
+                await self.do(warpgate.warp_in(STALKER, placement))
+                
     async def warp_units(self):
         if self.proxy_built and self.units(WARPGATE).ready:
             proxy = self.units(PYLON).closest_to(self.enemy_start_locations[0])
             await self.warp_new_units(proxy)
 
-    async def build_proxy_pylon(self):
+    async def build_proxy_pylon(self): #野水晶，加快接兵速度
         if self.units(CYBERNETICSCORE).amount >= 1 and not self.proxy_built and self.can_afford(PYLON):
             p = self.game_info.map_center.towards(self.enemy_start_locations[0], 20)
             await self.build(PYLON, near=p)
             self.proxy_built = True
 
-    # Used for chronoboost
-    async def chronoboost(self):
+    async def chronoboost(self): #使用星空加速来加快研究速度
         if not self.units(CYBERNETICSCORE).ready.exists:
             bn=self.units(NEXUS).ready.first
             if not bn.has_buff(BuffId.CHRONOBOOSTENERGYCOST):
@@ -334,16 +300,15 @@ class ProtossBot(sc2.BotAI):
                         for nexus in self.units(NEXUS).ready:
                             await self.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, twlc))
 
-    # check if we have an ability
-    async def has_ability(self, ability, unit):
+    async def has_ability(self, ability, unit): #判断技能是否可用
         abilities = await self.get_available_abilities(unit)
         if ability in abilities:
             return True
         else:
             return False
 
-    # Sexy blink micro time
-    async def blink(self):
+
+    async def blink(self): #当护盾小于20的时候往后闪烁，规避火力
         for stalker in self.units(STALKER):
             has_blink = await self.has_ability(EFFECT_BLINK_STALKER, stalker)
             threatsClose = self.known_enemy_units.filter(lambda x: x.can_attack_ground).closer_than(5, stalker)
@@ -353,13 +318,10 @@ class ProtossBot(sc2.BotAI):
                     await self.do(stalker(EFFECT_BLINK_STALKER, escape_location))
 
 
-# Final method to launch the game with our bot
 def game():
     run_game(maps.get("Simple64"), [
         Bot(Race.Protoss, ProtossBot()),
         Computer(Race.Protoss, Difficulty.Hard)
     ], realtime=False)
-
-
 
 game()
