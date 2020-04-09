@@ -15,7 +15,7 @@ HEADLESS = False
 class ProtossBot(sc2.BotAI):
     def __init__(self): #设定初始参数
         self.ITERATIONS_PER_MINUTE=260
-        self.MAX_WORKERS=38
+        self.MAX_WORKERS=48
         self.do_something_after=0
         self.train_data=[]
         self.warpgate_started=False
@@ -42,6 +42,7 @@ class ProtossBot(sc2.BotAI):
         await self.build_proxy_pylon()
         await self.chronoboost()
         await self.blink()
+        await self.guardian()
 
     def random_location_variance(self, enemy_start_location):  #随机摆放建筑物，感觉可以再优化
         x=enemy_start_location[0]
@@ -150,50 +151,54 @@ class ProtossBot(sc2.BotAI):
                         await self.do(nexus.train(PROBE))
 
     async def build_pylons(self): #建造水晶塔，且避免建筑影响采矿
-        if self.supply_used<=40:
+        if self.supply_used<=60:
             if self.supply_left<5 and not self.already_pending(PYLON):
-                nexus=self.units(NEXUS).ready[-1]
+                nexus=self.units(NEXUS).ready.first
                 await self.build(PYLON,near=nexus.position.towards(self.game_info.map_center,10))
         else:
             if self.supply_left<10 and not self.already_pending(PYLON):
-                nexus=self.units(NEXUS).ready[-1]
+                nexus=self.units(NEXUS).ready.first
                 await self.build(PYLON,near=nexus.position.towards(self.game_info.map_center,10))
 
     async def build_assimilators(self):  #建造气矿
-        for nexus in self.units(NEXUS).ready:
-            vespenes=self.state.vespene_geyser.closer_than(15.0,nexus)
-            for vespene in vespenes:
-                if not self.can_afford(ASSIMILATOR):
-                    break
-                worker=self.select_build_worker(vespene.position)
-                if worker is None:
-                    break
-                if not self.units(ASSIMILATOR).closer_than(1.0,vespene).exists:
-                    await self.do(worker.build(ASSIMILATOR,vespene))
-            
-    async def offensive_force_buildings(self): #单兵营开二矿 考虑在建造顺序上更加严谨一点
+        if self.units(ASSIMILATOR).amount<4: 
+            for nexus in self.units(NEXUS).ready:
+                vespenes=self.state.vespene_geyser.closer_than(15.0,nexus)
+                for vespene in vespenes:
+                    if not self.can_afford(ASSIMILATOR):
+                        break
+                    worker=self.select_build_worker(vespene.position)
+                    if worker is None:
+                        break
+                    if not self.units(ASSIMILATOR).closer_than(1.0,vespene).exists:
+                        await self.do(worker.build(ASSIMILATOR,vespene))
+                
+    async def offensive_force_buildings(self): #单兵营开二矿 
         if self.units(PYLON).ready.exists:
-            pylon = self.units(PYLON).ready.random
+            if len(self.units(PYLON).ready)==3:
+                pylon=self.units(PYLON).ready[1]
+            else:
+                pylon=self.units(PYLON).ready.first
 
             if self.units(GATEWAY).ready.exists and not self.units(CYBERNETICSCORE):
                 if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
                     await self.build(CYBERNETICSCORE,near=pylon)
-            elif self.units(GATEWAY).amount==1 and self.units(NEXUS).amount<2:
+            elif self.units(GATEWAY).amount==1 and self.units(NEXUS).amount<3:
                 if self.can_afford(NEXUS):
                     await self.expand_now()
             elif self.units(GATEWAY).amount+self.units(WARPGATE).amount<8: 
                  if self.can_afford(GATEWAY):
-                    await self.build(GATEWAY,near=pylon)
+                    await self.build(GATEWAY,near=self.units(PYLON).closest_to(self.units(NEXUS).first).position.towards(self.game_info.map_center,10))
                     
             if self.units(CYBERNETICSCORE).ready.exists:
                 if len(self.units(TWILIGHTCOUNCIL))<1:
                     if self.can_afford(TWILIGHTCOUNCIL) and not self.already_pending(TWILIGHTCOUNCIL):
                         await self.build(TWILIGHTCOUNCIL,near=pylon)
             
-            if self.units(CYBERNETICSCORE).ready.exists:
+            if self.units(CYBERNETICSCORE).ready.exists and self.proxy_built:
                 if len(self.units(ROBOTICSFACILITY))<1:
                     if self.can_afford(ROBOTICSFACILITY) and not self.already_pending(ROBOTICSFACILITY):
-                        p=self.game_info.map_center.towards(self.enemy_start_locations[0], 20)
+                        p=self.game_info.map_center.towards(self.enemy_start_locations[0], 18)
                         await self.build(ROBOTICSFACILITY,near=p)
             
             #升级
@@ -258,7 +263,7 @@ class ProtossBot(sc2.BotAI):
                 self.train_data.append([y, self.flipped])
 
 
-    async def warp_new_units(self, proxy): #折跃追猎者  在考虑同时折跃哨兵
+    async def warp_new_units(self, proxy): #折跃追猎者
         for warpgate in self.units(WARPGATE).ready:
             abilities = await self.get_available_abilities(warpgate)
             if AbilityId.WARPGATETRAIN_STALKER in abilities:
@@ -266,7 +271,7 @@ class ProtossBot(sc2.BotAI):
                 placement = await self.find_placement(AbilityId.WARPGATETRAIN_STALKER, pos, placement_step=1)
                 if placement is None:
                     return
-                if self.units(ROBOTICSFACILITY).amount<1 or (not self.units(ROBOTICSFACILITY).noqueue):
+                if self.units(ROBOTICSFACILITY).ready.exists or (not self.units(ROBOTICSFACILITY).noqueue):
                     await self.do(warpgate.warp_in(STALKER, placement))
                     await self.do(warpgate.warp_in(SENTRY,placement))
                 
@@ -275,8 +280,8 @@ class ProtossBot(sc2.BotAI):
             proxy = self.units(PYLON).closest_to(self.enemy_start_locations[0])
             await self.warp_new_units(proxy)
 
-    async def build_proxy_pylon(self): #野水晶，加快接兵速度
-        if self.units(CYBERNETICSCORE).amount >= 1 and not self.proxy_built and self.can_afford(PYLON):
+    async def build_proxy_pylon(self): #野水晶，加快接兵速度  
+        if self.units(TWILIGHTCOUNCIL).amount>=1 and not self.proxy_built and self.can_afford(PYLON):
             p = self.game_info.map_center.towards(self.enemy_start_locations[0], 20)
             await self.build(PYLON, near=p)
             self.proxy_built = True
@@ -288,24 +293,28 @@ class ProtossBot(sc2.BotAI):
                 for nexus in self.units(NEXUS).ready:
                     abilities = await self.get_available_abilities(nexus)
                     if AbilityId.EFFECT_CHRONOBOOSTENERGYCOST in abilities:
-                        for nexus in self.units(NEXUS).ready:
-                            await self.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, bn))
+                        await self.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, bn))
         elif self.units(CYBERNETICSCORE).ready.exists and not self.units(WARPGATE).exists:
             ccore = self.units(CYBERNETICSCORE).ready.first
             if not ccore.has_buff(BuffId.CHRONOBOOSTENERGYCOST):
                 for nexus in self.units(NEXUS).ready:
                     abilities = await self.get_available_abilities(nexus)
                     if AbilityId.EFFECT_CHRONOBOOSTENERGYCOST in abilities:
-                        for nexus in self.units(NEXUS).ready:
-                            await self.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, ccore))
-        elif self.units(TWILIGHTCOUNCIL).ready.exists:
+                        await self.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, ccore))
+        elif self.units(TWILIGHTCOUNCIL).ready.exists and not self.units(TWILIGHTCOUNCIL).noqueue:
             twlc = self.units(TWILIGHTCOUNCIL).ready.first
             if not twlc.has_buff(BuffId.CHRONOBOOSTENERGYCOST):
                 for nexus in self.units(NEXUS).ready:
                     abilities = await self.get_available_abilities(nexus)
                     if AbilityId.EFFECT_CHRONOBOOSTENERGYCOST in abilities:
-                        for nexus in self.units(NEXUS).ready:
-                            await self.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, twlc))
+                        await self.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, twlc))
+        elif self.units(ROBOTICSFACILITY).ready.exists and self.units(TWILIGHTCOUNCIL).noqueue:
+            vr=self.units(ROBOTICSFACILITY).ready.first
+            if not vr.has_buff(BuffId.CHRONOBOOSTENERGYCOST):
+                for nexus in self.units(NEXUS).ready:
+                    abilites=await self.get_available_abilities(nexus)
+                    if AbilityId.EFFECT_CHRONOBOOSTENERGYCOST in abilites:
+                        await self.do(nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST,vr))
 
     async def has_ability(self, ability, unit): #判断技能是否可用
         abilities = await self.get_available_abilities(unit)
@@ -323,6 +332,12 @@ class ProtossBot(sc2.BotAI):
                 escape_location = stalker.position.towards(self.game_info.map_center, 4)
                 if has_blink:
                     await self.do(stalker(EFFECT_BLINK_STALKER, escape_location))
+    
+    async def guardian(self): #哨兵使用守护者之盾
+        for sentry in self.units(SENTRY):
+            threatsClose=self.known_enemy_units.filter(lambda x: x.can_attack_ground).closer_than(10,sentry)
+            if threatsClose:
+                await self.do(sentry(GUARDIANSHIELD_GUARDIANSHIELD))
 
 
 def game():
