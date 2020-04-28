@@ -22,3 +22,6 @@ https://drive.google.com/file/d/1iWq6LP822zH_EFJsW0jfhE6gFfTE0jKE/view?usp=shari
     - Navigate to wherever your StarCraft II folder is, move Melee folder to StarCraft II/Maps/. If Maps folder does not exist, create one.
 4. To run the agent file, navigate to pysc2 folder(should be in python's site_packages folder). Put agent file in the bin folder and run the file from there. 
 
+### Final Documents:
+- Demo: https://drive.google.com/open?id=1nlSL0vAQx5kw9bFuGVhvRWHXYcvGBIfD
+- Report: https://drive.google.com/open?id=1ZqJWcgqm-HmirDpbWNpGBAYnjU9aIqsq
