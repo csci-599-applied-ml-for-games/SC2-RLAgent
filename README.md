@@ -13,5 +13,7 @@
 - PPT: https://drive.google.com/file/d/1HISkMdCEcdVr4uUdeXyJ-r5lST_LP94h/view?usp=sharing
 
 ### Final Documents:
-- Demo: https://drive.google.com/open?id=1nlSL0vAQx5kw9bFuGVhvRWHXYcvGBIfD or https://youtu.be/b8qj38jM1bY
-- Report: https://drive.google.com/open?id=1ZqJWcgqm-HmirDpbWNpGBAYnjU9aIqsq
+- Final Demo: https://youtu.be/b8qj38jM1bY
+- Video Trailer: https://drive.google.com/open?id=1nlSL0vAQx5kw9bFuGVhvRWHXYcvGBIfD
+- Project Report: https://drive.google.com/open?id=1ZqJWcgqm-HmirDpbWNpGBAYnjU9aIqsq
+- PPT: https://docs.google.com/presentation/d/15sG7cQXdAHgQ1l91oWk2lJ2VFWNDJngV/edit#slide=id.p1
